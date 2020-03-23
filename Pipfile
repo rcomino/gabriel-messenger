@@ -1,0 +1,28 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+aiofiles = "*"
+aiohttp = "*"
+aiosqlite = "*"
+appdirs = "*"
+beautifulsoup4 = "*"
+discord-py = "*"
+orm = "==0.1.5"
+tzlocal = "*"
+pytz = "*"
+PyYaml = "*"
+
+[dev-packages]
+pylint = "*"
+yapf = "*"
+sphinx = "*"
+
+[requires]
+python_version = "3.8"
+
+[scripts]
+ci = "bash -c \"yapf -ir . && pylint --max-line-length 120 src setup.py \""
+run = "python setup.py"

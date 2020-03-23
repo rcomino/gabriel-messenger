@@ -1,0 +1,13 @@
+"""Queue Context Value Object Module."""
+
+from asyncio import Queue
+from dataclasses import dataclass
+from typing import Union
+
+
+@dataclass
+class QueueContextValueObject:
+    """Queue Context Value Object. This will be passed to receivers services to know a what queues will need to send
+    data."""
+    publication_queue: Queue
+    channel: Union[str, int]
