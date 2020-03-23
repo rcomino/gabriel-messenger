@@ -3,9 +3,9 @@
 import argparse
 import logging
 
-from src.application.application import Application
-from src.services.common.enums.environment import Environment
-from src.infrastructure.configuration.configuration import Configuration
+from src.app.application import Application
+from src.ser.common.enums.environment import Environment
+from src.inf.configuration.configuration import Configuration
 
 
 def parse_args():

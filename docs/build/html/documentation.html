@@ -1,0 +1,247 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Documentation &#8212; Gabriel Messenger 0.1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="TODO" href="todo.html" />
+    <link rel="prev" title="Quickstart" href="quickstart.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="documentation">
+<h1>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="definitions">
+<h2>Definitions<a class="headerlink" href="#definitions" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Publication</strong>: A publication is a dataclass that includes all the information necessary to generate an entry on any social network. A publication will be shared by a <strong>receiver service</strong> to n <strong>*sender services*</strong>.</p></li>
+<li><p><strong>Service</strong>: A service is a utility that allow to manage publications in some way. There are two types of services: “<strong>Receivers</strong>” and “<strong>Senders</strong>”.</p>
+<ul>
+<li><p><strong>Receiver Service</strong>: A service that download information from external resources and generate publications. This publications will be upload in configured queues of <strong>sender services</strong>.</p></li>
+<li><p><strong>Sender Service</strong>: A service that get publications from his queue and publish to external resource.</p></li>
+</ul>
+</li>
+<li><p><strong>Task</strong>: Tasks are used to schedule coroutines concurrently. See: <a class="reference external" href="https://docs.python.org/3/library/asyncio-task.html">asyncio task</a>.</p>
+<ul>
+<li><p>All services will generate a task to perform his functionality.</p></li>
+<li><p>Other tasks: to manage state of services. Currently only to perform shutdown of all services. See next code:</p></li>
+</ul>
+</li>
+</ul>
+<dl class="class">
+<dt id="src.app.application.Application">
+<em class="property">class </em><code class="sig-prename descclassname">src.app.application.</code><code class="sig-name descname">Application</code><span class="sig-paren">(</span><em class="sig-param">configuration: src.inf.configuration.configuration.Configuration</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/app/application.html#Application"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#src.app.application.Application" title="Permalink to this definition">¶</a></dt>
+<dd><p>Application class. The one in charge of governing all the modules.</p>
+<dl class="method">
+<dt id="src.app.application.Application._clean_shutdown">
+<code class="sig-name descname">_clean_shutdown</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/app/application.html#Application._clean_shutdown"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#src.app.application.Application._clean_shutdown" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handler that will be activated when app receives a SIGINT signal. This create a task to programming a clean
+shutdown.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="workflow">
+<h2>Workflow<a class="headerlink" href="#workflow" title="Permalink to this headline">¶</a></h2>
+<div class="graphviz"><img src="_images/graphviz-48cd0e4a6ee13767870da5f5d40f3d574b7b46e5.png" alt="digraph Workflow {
+     &quot;Ext Resource rA&quot; -&gt; &quot;Receiver rA&quot;;
+     &quot;Receiver rA&quot; -&gt; &quot;Queue s1&quot;;
+     &quot;Receiver rA&quot; -&gt; &quot;Queue s2&quot;;
+     &quot;Ext Resource rB&quot; -&gt; &quot;Receiver rB&quot;;
+     &quot;Receiver rB&quot; -&gt; &quot;Queue s1&quot;;
+     &quot;Receiver rB&quot; -&gt; &quot;Queue s2&quot;;
+     &quot;Receiver rB&quot; -&gt; &quot;Queue sN&quot;;
+     &quot;Ext Resource rN&quot; -&gt; &quot;Receiver rN&quot;;
+     &quot;Receiver rN&quot; -&gt; &quot;Queue sN&quot;;
+     &quot;Queue s1&quot; -&gt; &quot;Sender s1&quot;;
+     &quot;Sender s1&quot; -&gt; &quot;Ext Resource s1&quot;;
+     &quot;Queue s2&quot; -&gt; &quot;Sender s2&quot;;
+     &quot;Sender s2&quot; -&gt; &quot;Ext Resource s2&quot;;
+     &quot;Queue sN&quot; -&gt; &quot;Sender sN&quot;;
+     &quot;Sender sN&quot; -&gt; &quot;Ext Resource sN&quot;;
+}" class="graphviz" /></div>
+<p>Each <strong>receiver Service</strong> download data from external resource, create publications with this data and send this publications to each queue configured. One queue, one <em>Sender Service</em>. Sender get publications from his queue and send to external resource.</p>
+</div>
+<div class="section" id="develop-your-own-service">
+<h2>Develop your own service<a class="headerlink" href="#develop-your-own-service" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="publication">
+<h3>Publication<a class="headerlink" href="#publication" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="src.ser.common.itf.publication.Publication">
+<em class="property">class </em><code class="sig-prename descclassname">src.ser.common.itf.publication.</code><code class="sig-name descname">Publication</code><span class="sig-paren">(</span><em class="sig-param">publication_id: Union[str, int], title: Optional[str] = None, description: Optional[str] = None, url: Optional[str] = None, timestamp: Optional[datetime.datetime] = None, color: Optional[int] = None, images: List[src.ser.common.value_object.file_value_object.FileValueObject] = &lt;factory&gt;, files: List[src.ser.common.value_object.file_value_object.FileValueObject] = &lt;factory&gt;, author: Optional[src.ser.common.value_object.author_value_object.AuthorValueObject] = None, custom_fields: Optional[Any] = None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/ser/common/itf/publication.html#Publication"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#src.ser.common.itf.publication.Publication" title="Permalink to this definition">¶</a></dt>
+<dd><p>Publication Interface. Is the base to create another dataclass that will be used to share publications between
+services.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="architecture">
+<h3>Architecture<a class="headerlink" href="#architecture" title="Permalink to this headline">¶</a></h3>
+<p>You will need to implement your new service with this architecture:</p>
+<div class="graphviz"><img src="_images/graphviz-841a938223a464af785ce355c01bc5cbe41e203e.png" alt="digraph Workflow {
+     &quot;ServiceInterface&quot; -&gt; &quot;ReceiverInterface&quot;
+     &quot;ServiceInterface&quot; -&gt; &quot;SenderMixin&quot;
+     &quot;ServiceInterface&quot; -&gt; &quot;ServiceMixin&quot;
+     &quot;ServiceMixin&quot; -&gt; &quot;ReceiverMixin&quot;
+     &quot;ServiceMixin&quot; -&gt; &quot;SenderMixin&quot;
+     &quot;ReceiverInterface&quot; -&gt; &quot;ReceiverMixin&quot;
+     &quot;SenderMixin&quot; -&gt; &quot;SenderMixin&quot;
+     &quot;ReceiverMixin&quot; -&gt; &quot;NewReceiverService&quot;
+     &quot;SenderMixin&quot; -&gt; &quot;NewSenderService&quot;
+}" class="graphviz" /></div>
+</div>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="interfaces">
+<h4>Interfaces<a class="headerlink" href="#interfaces" title="Permalink to this headline">¶</a></h4>
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="sig-prename descclassname">src.ser.common.itf.publication.</code><code class="sig-name descname">Publication</code><span class="sig-paren">(</span><em class="sig-param">publication_id: Union[str, int], title: Optional[str] = None, description: Optional[str] = None, url: Optional[str] = None, timestamp: Optional[datetime.datetime] = None, color: Optional[int] = None, images: List[src.ser.common.value_object.file_value_object.FileValueObject] = &lt;factory&gt;, files: List[src.ser.common.value_object.file_value_object.FileValueObject] = &lt;factory&gt;, author: Optional[src.ser.common.value_object.author_value_object.AuthorValueObject] = None, custom_fields: Optional[Any] = None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/ser/common/itf/publication.html#Publication"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Publication Interface. Is the base to create another dataclass that will be used to share publications between
+services.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="src.ser.common.itf.service.ServiceInterface">
+<em class="property">class </em><code class="sig-prename descclassname">src.ser.common.itf.service.</code><code class="sig-name descname">ServiceInterface</code><a class="reference internal" href="_modules/src/ser/common/itf/service.html#ServiceInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#src.ser.common.itf.service.ServiceInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Service interface. This the main interface of receiver interface and sender interface.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="src.ser.common.itf.receiver.ReceiverInterface">
+<em class="property">class </em><code class="sig-prename descclassname">src.ser.common.itf.receiver.</code><code class="sig-name descname">ReceiverInterface</code><a class="reference internal" href="_modules/src/ser/common/itf/receiver.html#ReceiverInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#src.ser.common.itf.receiver.ReceiverInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receiver Interface. Receiver is a service that download data from web and pass to sender service.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="src.ser.common.itf.sender.SenderMixin">
+<em class="property">class </em><code class="sig-prename descclassname">src.ser.common.itf.sender.</code><code class="sig-name descname">SenderMixin</code><a class="reference internal" href="_modules/src/ser/common/itf/sender.html#SenderMixin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#src.ser.common.itf.sender.SenderMixin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sender Interface. This is required to implement in all sender services.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="mixins">
+<h4>Mixins<a class="headerlink" href="#mixins" title="Permalink to this headline">¶</a></h4>
+<dl class="class">
+<dt id="src.ser.common.service_mixin.ServiceMixin">
+<em class="property">class </em><code class="sig-prename descclassname">src.ser.common.service_mixin.</code><code class="sig-name descname">ServiceMixin</code><a class="reference internal" href="_modules/src/ser/common/service_mixin.html#ServiceMixin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#src.ser.common.service_mixin.ServiceMixin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Common Service Mixin. This class includes methods that required by senders services and receivers services.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="src.ser.common.receiver_mixin.ReceiverMixin">
+<em class="property">class </em><code class="sig-prename descclassname">src.ser.common.receiver_mixin.</code><code class="sig-name descname">ReceiverMixin</code><span class="sig-paren">(</span><em class="sig-param">logger: logging.Logger</em>, <em class="sig-param">wait_time: int</em>, <em class="sig-param">state_change_queue: asyncio.queues.Queue</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/ser/common/receiver_mixin.html#ReceiverMixin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#src.ser.common.receiver_mixin.ReceiverMixin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receiver Common Service Mixin. This mixin include methods required by receivers services.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="src.ser.common.sender_mixin.SenderMixin">
+<em class="property">class </em><code class="sig-prename descclassname">src.ser.common.sender_mixin.</code><code class="sig-name descname">SenderMixin</code><a class="reference internal" href="_modules/src/ser/common/sender_mixin.html#SenderMixin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#src.ser.common.sender_mixin.SenderMixin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sender Common Service Mixin. This mixin include methods required by senders services.</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Gabriel Messenger</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#definitions">Definitions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow">Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#develop-your-own-service">Develop your own service</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="todo.html">TODO</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="quickstart.html" title="previous chapter">Quickstart</a></li>
+      <li>Next: <a href="todo.html" title="next chapter">TODO</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Guibos.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/documentation.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

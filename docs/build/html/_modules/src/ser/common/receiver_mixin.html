@@ -1,0 +1,291 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>src.ser.common.receiver_mixin &#8212; Gabriel Messenger 0.1 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.ser.common.receiver_mixin</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Receiver Common Service Mixin Module.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">_blake2</span> <span class="kn">import</span> <span class="n">blake2b</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">asyncio</span> <span class="kn">import</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">QueueEmpty</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">Logger</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
+
+<span class="kn">import</span> <span class="nn">aiofiles</span>
+<span class="kn">import</span> <span class="nn">aiohttp</span>
+<span class="kn">import</span> <span class="nn">appdirs</span>
+<span class="kn">import</span> <span class="nn">databases</span>
+<span class="kn">import</span> <span class="nn">sqlalchemy</span>
+<span class="kn">from</span> <span class="nn">orm.models</span> <span class="kn">import</span> <span class="n">ModelMetaclass</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">MetaData</span>
+
+<span class="kn">from</span> <span class="nn">src.ser.common.service_mixin</span> <span class="kn">import</span> <span class="n">ServiceMixin</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.enums.environment</span> <span class="kn">import</span> <span class="n">Environment</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.enums.state</span> <span class="kn">import</span> <span class="n">State</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.itf.receiver</span> <span class="kn">import</span> <span class="n">ReceiverInterface</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.queue_manager</span> <span class="kn">import</span> <span class="n">QueueManager</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.value_object.file_value_object</span> <span class="kn">import</span> <span class="n">FileValueObject</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.value_object.queue_context_value_object</span> <span class="kn">import</span> <span class="n">QueueContextValueObject</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.value_object.task_value_object</span> <span class="kn">import</span> <span class="n">TaskValueObject</span>
+
+
+<div class="viewcode-block" id="ReceiverMixin"><a class="viewcode-back" href="../../../../documentation.html#src.ser.common.receiver_mixin.ReceiverMixin">[docs]</a><span class="k">class</span> <span class="nc">ReceiverMixin</span><span class="p">(</span><span class="n">ReceiverInterface</span><span class="p">,</span> <span class="n">ServiceMixin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Receiver Common Service Mixin. This mixin include methods required by receivers services.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="p">:</span> <span class="n">Logger</span><span class="p">,</span> <span class="n">wait_time</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">state_change_queue</span><span class="p">:</span> <span class="n">Queue</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_wait_time</span> <span class="o">=</span> <span class="n">wait_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state_change_queue</span> <span class="o">=</span> <span class="n">state_change_queue</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_get_queue_manager</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">],</span> <span class="n">senders</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">TaskValueObject</span><span class="p">]]):</span>
+        <span class="n">queue_context_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sender_name</span><span class="p">,</span> <span class="n">senders_configs</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">sender_configs</span> <span class="ow">in</span> <span class="n">senders_configs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="n">sender_configs</span><span class="p">:</span>
+                    <span class="n">queue_context</span> <span class="o">=</span> <span class="n">QueueContextValueObject</span><span class="p">(</span>
+                        <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">publication_queue</span><span class="o">=</span><span class="n">senders</span><span class="p">[</span><span class="n">sender_name</span><span class="p">][</span><span class="n">sender_id</span><span class="p">]</span><span class="o">.</span><span class="n">publication_queue</span><span class="p">)</span>
+                    <span class="n">queue_context_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">queue_context</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">QueueManager</span><span class="p">(</span><span class="n">queue_context_list</span><span class="o">=</span><span class="n">queue_context_list</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_get_repository_directory</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">app_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">environment</span><span class="p">:</span> <span class="n">Environment</span><span class="p">):</span>
+        <span class="n">repository_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">appdirs</span><span class="o">.</span><span class="n">user_data_dir</span><span class="p">(</span><span class="n">app_name</span><span class="p">),</span> <span class="n">environment</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">MODULE</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">repository_directory</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">repository_directory</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_set_database</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">MetaData</span><span class="p">,</span> <span class="n">models</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ModelMetaclass</span><span class="p">],</span> <span class="n">app_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                      <span class="n">environment</span><span class="p">:</span> <span class="n">Environment</span><span class="p">):</span>
+        <span class="n">repository_directory</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_repository_directory</span><span class="p">(</span><span class="n">app_name</span><span class="o">=</span><span class="n">app_name</span><span class="p">,</span> <span class="n">environment</span><span class="o">=</span><span class="n">environment</span><span class="p">)</span>
+        <span class="n">database_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">repository_directory</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_DATABASE_FILE</span><span class="p">)</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">databases</span><span class="o">.</span><span class="n">Database</span><span class="p">(</span><span class="s2">&quot;sqlite:///&quot;</span> <span class="o">+</span> <span class="n">database_file</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">models</span><span class="p">:</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">__database__</span> <span class="o">=</span> <span class="n">database</span>
+        <span class="n">engine</span> <span class="o">=</span> <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">create_engine</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">database</span><span class="o">.</span><span class="n">url</span><span class="p">),</span> <span class="n">connect_args</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;timeout&#39;</span><span class="p">:</span> <span class="mi">6000000</span><span class="p">})</span>
+        <span class="n">metadata</span><span class="o">.</span><span class="n">create_all</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">checkfirst</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_get_repository_files_directory</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">app_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">environment</span><span class="p">:</span> <span class="n">Environment</span><span class="p">):</span>
+        <span class="n">repository_directory</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_repository_directory</span><span class="p">(</span><span class="n">app_name</span><span class="o">=</span><span class="n">app_name</span><span class="p">,</span> <span class="n">environment</span><span class="o">=</span><span class="n">environment</span><span class="p">)</span>
+        <span class="n">files_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">repository_directory</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_FILES_DIRECTORY</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">files_directory</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">files_directory</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">_loop_manager</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">wait_time</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">state_change_queue</span><span class="p">:</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">logger</span><span class="p">:</span> <span class="n">Logger</span><span class="p">):</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">new_state</span><span class="p">:</span> <span class="n">State</span> <span class="o">=</span> <span class="n">state_change_queue</span><span class="o">.</span><span class="n">get_nowait</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">new_state</span> <span class="o">==</span> <span class="n">State</span><span class="o">.</span><span class="n">STOP</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Shutdown&quot;</span><span class="p">)</span>
+                    <span class="k">return</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+            <span class="k">except</span> <span class="n">QueueEmpty</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;No new state.&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">wait_time</span><span class="p">:</span>
+                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_publications</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Waiting </span><span class="si">%s</span><span class="s2"> seconds&quot;</span><span class="p">,</span> <span class="n">wait_time</span><span class="p">)</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_WAIT_TIME</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Remains </span><span class="si">%s</span><span class="s2"> seconds, to execute the task.&quot;</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">wait_time</span> <span class="o">-</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span><span class="p">)))</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">_load_publications</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">_get_file_value_object</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                     <span class="n">files_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                     <span class="n">download_file</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+                                     <span class="n">pretty_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                     <span class="n">filename_unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                     <span class="n">public_url</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FileValueObject</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">download_file</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">FileValueObject</span><span class="p">(</span>
+                <span class="n">public_url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+                <span class="n">pretty_name</span><span class="o">=</span><span class="n">pretty_name</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">with</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;?&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filename_unique</span><span class="p">:</span>
+            <span class="n">hash_obj</span> <span class="o">=</span> <span class="n">blake2b</span><span class="p">()</span>
+            <span class="n">hash_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">hash_obj</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">filename</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">files_directory</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">with</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">public_url</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">FileValueObject</span><span class="p">(</span>
+                <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span>
+                <span class="n">public_url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+                <span class="n">pretty_name</span><span class="o">=</span><span class="n">pretty_name</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">FileValueObject</span><span class="p">(</span>
+                <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span>
+                <span class="n">pretty_name</span><span class="o">=</span><span class="n">pretty_name</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Instance is working&quot;</span><span class="p">)</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_cache</span><span class="p">()</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loop_manager</span><span class="p">(</span><span class="n">wait_time</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_wait_time</span><span class="p">,</span>
+                                 <span class="n">state_change_queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_state_change_queue</span><span class="p">,</span>
+                                 <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">_get_site_content</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;This method get a url and return content in bytes.&quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                <span class="k">return</span> <span class="n">response</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">create_tasks_from_configuration</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">configuration</span><span class="p">,</span> <span class="n">senders</span><span class="p">,</span> <span class="n">loop</span><span class="p">,</span> <span class="n">app_name</span><span class="p">,</span> <span class="n">environment</span><span class="p">,</span> <span class="n">logging_level</span><span class="p">):</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_set_database</span><span class="p">(</span><span class="n">models</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">MODELS</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">MODELS_METADATA</span><span class="p">,</span> <span class="n">app_name</span><span class="o">=</span><span class="n">app_name</span><span class="p">,</span> <span class="n">environment</span><span class="o">=</span><span class="n">environment</span><span class="p">)</span>
+        <span class="n">files_directory</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_repository_files_directory</span><span class="p">(</span><span class="n">app_name</span><span class="o">=</span><span class="n">app_name</span><span class="p">,</span> <span class="n">environment</span><span class="o">=</span><span class="n">environment</span><span class="p">)</span>
+
+        <span class="n">service_global_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;colour&#39;</span><span class="p">:</span> <span class="n">configuration</span><span class="p">[</span><span class="s1">&#39;colour&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;wait_time&#39;</span><span class="p">:</span> <span class="n">configuration</span><span class="p">[</span><span class="s1">&#39;wait_time&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;download_files&#39;</span><span class="p">:</span> <span class="n">configuration</span><span class="p">[</span><span class="s1">&#39;download_files&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;files_directory&#39;</span><span class="p">:</span> <span class="n">files_directory</span><span class="p">,</span>
+            <span class="s1">&#39;logging_level&#39;</span><span class="p">:</span> <span class="n">logging_level</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="n">service_instances_config</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_custom_configuration</span><span class="p">(</span><span class="n">configuration</span><span class="o">=</span><span class="n">configuration</span><span class="p">,</span> <span class="n">senders</span><span class="o">=</span><span class="n">senders</span><span class="p">)</span>
+
+        <span class="n">instance_value_objects</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">TaskValueObject</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">service_instance_config</span> <span class="ow">in</span> <span class="n">service_instances_config</span><span class="p">:</span>
+            <span class="n">state_change_queue</span> <span class="o">=</span> <span class="n">Queue</span><span class="p">()</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="bp">cls</span><span class="p">(</span>
+                <span class="o">**</span><span class="n">service_global_config</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">service_instance_config</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">,</span>
+                <span class="n">state_change_queue</span><span class="o">=</span><span class="n">state_change_queue</span><span class="p">,</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(),</span>
+                                    <span class="n">name</span><span class="o">=</span><span class="n">service_instance_config</span><span class="o">.</span><span class="n">instance_name</span><span class="p">)</span>
+            <span class="n">instance_value_objects</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">TaskValueObject</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">service_instance_config</span><span class="o">.</span><span class="n">instance_name</span><span class="p">,</span>
+                    <span class="n">task</span><span class="o">=</span><span class="n">task</span><span class="p">,</span>
+                    <span class="n">state_change_queue</span><span class="o">=</span><span class="n">state_change_queue</span><span class="p">,</span>
+                <span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">instance_value_objects</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">_load_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">[</span><span class="n">announcement</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">announcement</span> <span class="ow">in</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">MODEL_IDENTIFIER</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()]</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">Gabriel Messenger</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../todo.html">TODO</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Guibos.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,13 @@
+"""Blackfire orm model module"""
+import orm
+import sqlalchemy
+
+METADATA = sqlalchemy.MetaData()
+
+
+class Identifier(orm.Model):  # pylint: disable=too-many-ancestors
+    """Indetifier orm model. This table store what product was processed in the past."""
+    __tablename__ = "identifier"
+    __metadata__ = METADATA
+
+    id = orm.Integer(primary_key=True)

@@ -8,8 +8,10 @@ aiofiles = "*"
 aiohttp = "*"
 aiosqlite = "*"
 appdirs = "*"
+arsenic = "*"
 beautifulsoup4 = "*"
-discord-py = "*"
+html5lib = "*"
+discord.py = "*"
 orm = "==0.1.5"
 tzlocal = "*"
 pytz = "*"
@@ -17,8 +19,9 @@ PyYaml = "*"
 
 [dev-packages]
 pylint = "*"
-yapf = "*"
 sphinx = "*"
+rinohtype = "*"
+yapf = "*"
 
 [requires]
 python_version = "3.8"
