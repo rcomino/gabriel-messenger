@@ -41,7 +41,7 @@
 <span class="kn">import</span> <span class="nn">asyncio</span>
 
 <span class="kn">from</span> <span class="nn">src.ser.common.itf.service</span> <span class="kn">import</span> <span class="n">ServiceInterface</span>
-<span class="kn">from</span> <span class="nn">src.ser.common.value_object.queue_data_value_object</span> <span class="kn">import</span> <span class="n">QueueDataValueObject</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.value_object.queue_data_value_object</span> <span class="kn">import</span> <span class="n">QueueData</span>
 <span class="kn">from</span> <span class="nn">src.ser.common.value_object.task_value_object</span> <span class="kn">import</span> <span class="n">TaskValueObject</span>
 
 
@@ -73,7 +73,7 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="nd">@abstractmethod</span>
-    <span class="k">async</span> <span class="k">def</span> <span class="nf">_load_publication</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">queue_data</span><span class="p">:</span> <span class="n">QueueDataValueObject</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">_load_publication</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">queue_data</span><span class="p">:</span> <span class="n">QueueData</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="nd">@abstractmethod</span>

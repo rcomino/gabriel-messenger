@@ -1,20 +1,20 @@
 """Discord Client Module"""
 import asyncio
 import logging
+import re
 from asyncio import Queue, AbstractEventLoop, Task
 from typing import Dict, Any
-import re
 
 import discord
 from discord import File
 
 from src.ser.common.sender_mixin import SenderMixin
-from src.ser.common.value_object.queue_data_value_object import QueueDataValueObject
+from src.ser.common.value_object.queue_data import QueueData
 from src.ser.discord.data.bot_config import BotConfig
 from src.ser.discord.data.channel_config import ChannelConfig
-from src.ser.discord.data.reporting_channel_config import ReportingChannelConfig
 from src.ser.discord.data.reaction_change_config import ReactionChangeConfig
 from src.ser.discord.data.reaction_config import ReactionConfig
+from src.ser.discord.data.reporting_channel_config import ReportingChannelConfig
 
 
 class DiscordService(discord.Client, SenderMixin):
@@ -45,6 +45,7 @@ class DiscordService(discord.Client, SenderMixin):
                 publication_queue=self._publication_queue,
             ))
 
+    # pylint: disable=too-many-arguments
     @classmethod
     def _create_task_from_configuration_custom(cls, configuration_item: dict, instance_name: str,
                                                loop: asyncio.AbstractEventLoop, publication_queue: Queue,
@@ -100,7 +101,7 @@ class DiscordService(discord.Client, SenderMixin):
             for reaction, reaction_config in config.items()
         }
 
-    async def _load_publication(self, *, queue_data: QueueDataValueObject) -> None:
+    async def _load_publication(self, *, queue_data: QueueData) -> None:
         files = []
         embed = discord.Embed(
             title=queue_data.publication.title,
@@ -114,16 +115,16 @@ class DiscordService(discord.Client, SenderMixin):
         if queue_data.publication.images[0].public_url:
             embed.set_image(url=queue_data.publication.images[0].public_url)
         else:
-            pretty_name = await self.clean_file_name(string=queue_data.publication.images[0].pretty_filename)
+            pretty_name = await self._clean_file_name(string=queue_data.publication.images[0].pretty_filename)
             embed.set_image(url=f"attachment://{pretty_name}")
             files.append(File(queue_data.publication.images[0].path, filename=pretty_name))
 
         for image in queue_data.publication.images[1:]:
-            pretty_name = await self.clean_file_name(string=image.pretty_filename)
+            pretty_name = await self._clean_file_name(string=image.pretty_filename)
             files.append(File(image.path, filename=pretty_name))
 
         for publication_file in queue_data.publication.files:
-            pretty_name = await self.clean_file_name(string=publication_file.pretty_filename)
+            pretty_name = await self._clean_file_name(string=publication_file.pretty_filename)
             files.append(File(publication_file.path, filename=pretty_name))
 
         if queue_data.publication.author:
@@ -157,5 +158,5 @@ class DiscordService(discord.Client, SenderMixin):
         self._logger.debug(message)
 
     @staticmethod
-    async def clean_file_name(string: str):
+    async def _clean_file_name(string: str):
         return re.sub(r'[^[A-z0-9_\.]', r'', string.replace(' ', '_'))

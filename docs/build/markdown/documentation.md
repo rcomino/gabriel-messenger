@@ -41,7 +41,7 @@ Each **receiver Service** download data from external resource, create publicati
 ### Publication
 
 
-### class src.ser.common.itf.publication.Publication(publication_id: Union[str, int], title: Optional[str] = None, description: Optional[str] = None, url: Optional[str] = None, timestamp: Optional[datetime.datetime] = None, color: Optional[int] = None, images: List[src.ser.common.value_object.file_value_object.FileValueObject] = <factory>, files: List[src.ser.common.value_object.file_value_object.FileValueObject] = <factory>, author: Optional[src.ser.common.value_object.author_value_object.AuthorValueObject] = None, custom_fields: Optional[Any] = None)
+### class src.ser.common.itf.publication.Publication(publication_id: Union[str, int], title: Optional[str] = None, description: Optional[str] = None, url: Optional[str] = None, timestamp: Optional[datetime.datetime] = None, color: Optional[int] = None, images: List[src.ser.common.value_object.file_value_object.FileValueObject] = <factory>, files: List[src.ser.common.value_object.file_value_object.FileValueObject] = <factory>, author: Optional[src.ser.common.value_object.author_value_object.Author] = None, custom_fields: Optional[Any] = None)
 Publication Interface. Is the base to create another dataclass that will be used to share publications between
 services.
 
@@ -62,7 +62,7 @@ You will need to implement your new service with this architecture:
 #### Interfaces
 
 
-### class src.ser.common.itf.publication.Publication(publication_id: Union[str, int], title: Optional[str] = None, description: Optional[str] = None, url: Optional[str] = None, timestamp: Optional[datetime.datetime] = None, color: Optional[int] = None, images: List[src.ser.common.value_object.file_value_object.FileValueObject] = <factory>, files: List[src.ser.common.value_object.file_value_object.FileValueObject] = <factory>, author: Optional[src.ser.common.value_object.author_value_object.AuthorValueObject] = None, custom_fields: Optional[Any] = None)
+### class src.ser.common.itf.publication.Publication(publication_id: Union[str, int], title: Optional[str] = None, description: Optional[str] = None, url: Optional[str] = None, timestamp: Optional[datetime.datetime] = None, color: Optional[int] = None, images: List[src.ser.common.value_object.file_value_object.FileValueObject] = <factory>, files: List[src.ser.common.value_object.file_value_object.FileValueObject] = <factory>, author: Optional[src.ser.common.value_object.author_value_object.Author] = None, custom_fields: Optional[Any] = None)
 Publication Interface. Is the base to create another dataclass that will be used to share publications between
 services.
 

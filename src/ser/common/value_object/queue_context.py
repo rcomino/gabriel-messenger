@@ -6,7 +6,7 @@ from typing import Union
 
 
 @dataclass
-class QueueContextValueObject:
+class QueueContext:
     """Queue Context Value Object. This will be passed to receivers services to know a what queues will need to send
     data."""
     publication_queue: Queue

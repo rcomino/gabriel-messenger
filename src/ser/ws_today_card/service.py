@@ -1,9 +1,11 @@
+"""Weiss Schwarz today's card service Module"""
+
 import logging
 import os
 import urllib.parse
 from asyncio import Queue
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
@@ -13,6 +15,7 @@ from src.ser.common.enums.language import Language
 from src.ser.common.itf.publication import Publication
 from src.ser.common.queue_manager import QueueManager
 from src.ser.common.receiver_mixin import ReceiverMixin
+from src.ser.common.value_object.transacation_data import TransactionData
 from src.ser.ws_today_card.data.config import Config
 from src.ser.ws_today_card.models.identifier import Identifier, METADATA
 
@@ -34,14 +37,16 @@ class WSTodayCard(ReceiverMixin, WeissSchwarzBarcelonaData):
         self._instance_name = instance_name
         logger = logging.getLogger(self._instance_name)
         logger.setLevel(logging_level)
-        super().__init__(logger=logger, wait_time=wait_time, state_change_queue=state_change_queue)
+        super().__init__(logger=logger,
+                         wait_time=wait_time,
+                         state_change_queue=state_change_queue,
+                         queue_manager=queue_manager,
+                         files_directory=files_directory,
+                         download_files=download_files)
         self._colour = colour
-        self._queue_manager = queue_manager
         self._download_files = download_files
         self._files_directory = files_directory
-        self._cache: List[str] = []
         self._title = self._TITLE.format(language.value)
-        self._language = language
         if language == Language.ENGLISH:
             self._url = self._EN_URL
             self._domain = self._EN_DOMAIN
@@ -59,10 +64,9 @@ class WSTodayCard(ReceiverMixin, WeissSchwarzBarcelonaData):
         for card in cards:
             publication = await self._get_new_cards(card=card)
             if publication:
-                await self._queue_manager.put(publication=publication)
-                self._logger.info("New Today's card: %s", publication.title)
-                await self.MODEL_IDENTIFIER.objects.create(id=publication.publication_id)
-                self._cache.append(publication.publication_id)
+                transaction_data = TransactionData(transaction_id=publication.publication_id,
+                                                   publications=[publication])
+                await self._put_in_queue(transaction_data=transaction_data)
 
     async def _get_new_cards(self, card: Tag) -> Optional[Publication]:
         file_name = os.path.basename(card.attrs['src'])
@@ -71,9 +75,7 @@ class WSTodayCard(ReceiverMixin, WeissSchwarzBarcelonaData):
 
         if 'ws_today_' in file_name:
             file = await self._get_file_value_object(url=card.attrs['src'],
-                                                     download_file=self._download_files,
                                                      pretty_name=self._title,
-                                                     files_directory=self._files_directory,
                                                      filename_unique=False,
                                                      public_url=False)
 
@@ -84,9 +86,7 @@ class WSTodayCard(ReceiverMixin, WeissSchwarzBarcelonaData):
 
         if file is None:
             file = await self._get_file_value_object(url=urllib.parse.urljoin(self._domain, card.attrs['src']),
-                                                     download_file=self._download_files,
                                                      pretty_name=self._title,
-                                                     files_directory=self._files_directory,
                                                      public_url=True)
 
         return Publication(

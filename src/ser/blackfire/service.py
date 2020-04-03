@@ -1,5 +1,4 @@
 """Blackfire service module. This is a receiver service."""
-import asyncio
 import logging
 import re
 import urllib.parse
@@ -8,20 +7,19 @@ from datetime import datetime
 from typing import List, Optional
 
 from bs4 import BeautifulSoup
-from bs4.element import PageElement, Tag
+from bs4.element import Tag
 
-from src.ser.blackfire.models.identifier import Identifier, METADATA
-from src.ser.blackfire.data.config import \
-    Config
+from src.ser.blackfire.data.blackfire_publication import BlackfirePublication
+from src.ser.blackfire.data.config import Config
 from src.ser.blackfire.data.custom_fields import CustomFields
-from src.ser.blackfire.data.blackfirepublication import BlackfirePublication
+from src.ser.blackfire.models.identifier import Identifier, METADATA
 from src.ser.common.data.weiss_schwarz_barcelona_data import WeissSchwarzBarcelonaData
 from src.ser.common.queue_manager import QueueManager
 from src.ser.common.receiver_mixin import ReceiverMixin
-from src.ser.common.value_object.custom_field_value_object import CustomFieldValueObject
+from src.ser.common.value_object.custom_field import CustomField
+from src.ser.common.value_object.transacation_data import TransactionData
 
 
-# pylint: disable=too-many-instance-attributes
 class BlackfireService(ReceiverMixin, WeissSchwarzBarcelonaData):
     """Blackfire service. This is a receiver service. With a string parameter allows module filter product of
     all products of ADC Blackfire."""
@@ -34,19 +32,21 @@ class BlackfireService(ReceiverMixin, WeissSchwarzBarcelonaData):
     _PRODUCTS_URL = 'https://www.blackfire.eu/list.php?ppp=60&sort=age&query={}'
     _PRODUCT_URL = 'https://www.blackfire.eu/product.php?id={}'
     _BLACKFIRE_BASE_URL = 'https://www.blackfire.eu/{}'
+    _PUBLIC_URL = True
 
     def __init__(self, *, files_directory: str, instance_name: str, queue_manager: QueueManager, search_parameters: str,
                  download_files: bool, wait_time: int, logging_level: str, state_change_queue: Queue, colour: int):
         self._instance_name = instance_name
         logger = logging.getLogger(self._instance_name)
         logger.setLevel(logging_level)
-        super().__init__(logger=logger, wait_time=wait_time, state_change_queue=state_change_queue)
+        super().__init__(logger=logger,
+                         wait_time=wait_time,
+                         state_change_queue=state_change_queue,
+                         queue_manager=queue_manager,
+                         files_directory=files_directory,
+                         download_files=download_files)
         self._colour = colour
-        self._queue_manager = queue_manager
         self._search_parameters = search_parameters
-        self._download_files = download_files
-        self._files_directory = files_directory
-        self._cache: List[int] = []
 
     async def _load_publications(self) -> None:
         html = await self._get_site_content(url=self._PRODUCTS_URL.format(self._search_parameters))
@@ -58,16 +58,16 @@ class BlackfireService(ReceiverMixin, WeissSchwarzBarcelonaData):
 
         products_ids = await self._get_new_product_ids(products_bs=products_bs)
 
-        products: List[BlackfirePublication] = await asyncio.gather(
-            *[self._get_product(product_id=product_id) for product_id in products_ids])
-        products.sort(key=lambda product_item: product_item.title)
+        publications = []
+        for product_id in products_ids:
+            publications.append(await self._get_product(product_id=product_id))
+
+        publications.sort(key=lambda product_item: product_item.title)
         self._logger.debug("Loaded all products")
 
-        for product in products:
-            await self._queue_manager.put(publication=product)
-            await Identifier.objects.create(id=product.publication_id)
-            self._cache.append(product.publication_id)
-            self._logger.info("New publication: %s", product.title)
+        for publication in publications:
+            transaction_data = TransactionData(transaction_id=publication.publication_id, publications=[publication])
+            await self._put_in_queue(transaction_data=transaction_data)
 
     async def _get_new_product_ids(self, products_bs: List[Tag]):
         products_ids = []
@@ -86,9 +86,8 @@ class BlackfireService(ReceiverMixin, WeissSchwarzBarcelonaData):
         product_description = beautiful_soup.find(id='tab-description').text.strip()
         product_image_url = self._BLACKFIRE_BASE_URL.format(beautiful_soup.find(id='image').attrs['src'])
         file = await self._get_file_value_object(url=product_image_url,
-                                                 download_file=self._download_files,
-                                                 pretty_name=product_name,
-                                                 files_directory=self._files_directory)
+                                                 public_url=self._PUBLIC_URL,
+                                                 pretty_name=product_name)
         beautiful_soup_description = beautiful_soup.find(class_="description").text.split('\n')
         product_custom_fields_value_object = CustomFields(
             release_date=self._get_release_date(beautiful_soup_description=beautiful_soup_description),
@@ -105,20 +104,20 @@ class BlackfireService(ReceiverMixin, WeissSchwarzBarcelonaData):
                                                     custom_fields=product_custom_fields_value_object)
         return product_value_object
 
-    def _get_release_date(self, *, beautiful_soup_description: str) -> Optional[CustomFieldValueObject]:
+    def _get_release_date(self, *, beautiful_soup_description: str) -> Optional[CustomField]:
         release_date = None
         for line in beautiful_soup_description:
             if 'Release Date' in line:
                 date_text = self._clean_text(line=line)
-                release_date = CustomFieldValueObject(name='Fecha de Lanzamiento', value=date_text)
+                release_date = CustomField(name='Fecha de Lanzamiento', value=date_text)
         return release_date
 
-    def _get_dead_line(self, *, beautiful_soup_description: str) -> Optional[CustomFieldValueObject]:
+    def _get_dead_line(self, *, beautiful_soup_description: str) -> Optional[CustomField]:
         dead_line = None
         for line in beautiful_soup_description:
             if 'Order Deadline' in line:
                 date_text = self._clean_text(line=line)
-                dead_line = CustomFieldValueObject(name='Fecha límite', value=date_text)
+                dead_line = CustomField(name='Fecha límite', value=date_text)
         return dead_line
 
     def _clean_text(self, line):

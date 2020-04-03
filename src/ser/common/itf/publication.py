@@ -1,11 +1,11 @@
 """Publication Interface module."""
 
-from abc import abstractmethod, ABC
+from abc import ABC
 from dataclasses import field, dataclass
 from datetime import datetime
 from typing import List, Optional, Union, Any
 
-from src.ser.common.value_object.author_value_object import AuthorValueObject
+from src.ser.common.value_object.author import Author
 from src.ser.common.value_object.file_value_object import FileValueObject
 
 
@@ -22,13 +22,15 @@ class Publication(ABC):
     color: Optional[int] = None
     images: List[FileValueObject] = field(default_factory=list)
     files: List[FileValueObject] = field(default_factory=list)
-    author: Optional[AuthorValueObject] = None
+    author: Optional[Author] = None
     custom_fields: Optional[Any] = None
 
     @property
     def markdown(self):
+        """Markdown output."""
         return f"*{self.title}*\n"
 
     @property
     def text(self):
+        """Plain text output."""
         return "{self.title}*\n"
