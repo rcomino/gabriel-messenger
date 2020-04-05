@@ -42,7 +42,7 @@
 <span class="kn">from</span> <span class="nn">src.ser.common.service_mixin</span> <span class="kn">import</span> <span class="n">ServiceMixin</span>
 <span class="kn">from</span> <span class="nn">src.ser.common.enums.state</span> <span class="kn">import</span> <span class="n">State</span>
 <span class="kn">from</span> <span class="nn">src.ser.common.itf.sender</span> <span class="kn">import</span> <span class="n">SenderMixin</span>
-<span class="kn">from</span> <span class="nn">src.ser.common.value_object.queue_data_value_object</span> <span class="kn">import</span> <span class="n">QueueDataValueObject</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.value_object.queue_data_value_object</span> <span class="kn">import</span> <span class="n">QueueData</span>
 <span class="kn">from</span> <span class="nn">src.ser.common.value_object.task_value_object</span> <span class="kn">import</span> <span class="n">TaskValueObject</span>
 
 
@@ -51,7 +51,7 @@
     <span class="k">async</span> <span class="k">def</span> <span class="nf">_loop_manager</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">state_change_queue</span><span class="p">:</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">logger</span><span class="p">:</span> <span class="n">Logger</span><span class="p">,</span> <span class="n">publication_queue</span><span class="p">:</span> <span class="n">Queue</span><span class="p">):</span>
         <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">queue_data</span><span class="p">:</span> <span class="n">QueueDataValueObject</span> <span class="o">=</span> <span class="n">publication_queue</span><span class="o">.</span><span class="n">get_nowait</span><span class="p">()</span>
+                <span class="n">queue_data</span><span class="p">:</span> <span class="n">QueueData</span> <span class="o">=</span> <span class="n">publication_queue</span><span class="o">.</span><span class="n">get_nowait</span><span class="p">()</span>
                 <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_publication</span><span class="p">(</span><span class="n">queue_data</span><span class="o">=</span><span class="n">queue_data</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">QueueEmpty</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;No publications.&quot;</span><span class="p">)</span>

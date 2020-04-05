@@ -1,4 +1,5 @@
 """Blackfire orm model module"""
+
 import orm
 import sqlalchemy
 

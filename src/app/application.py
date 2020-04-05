@@ -4,17 +4,15 @@ import logging
 import signal
 from typing import Tuple, Dict, Union, List
 
+from src.inf.configuration.configuration import Configuration
+from src.ser.blackfire.service import BlackfireService
 from src.ser.common.enums.state import State
 from src.ser.common.receiver_mixin import ReceiverMixin
 from src.ser.common.sender_mixin import SenderMixin
 from src.ser.common.value_object.task_value_object import TaskValueObject
-from src.inf.configuration.configuration import Configuration
-from src.ser.blackfire.service import BlackfireService
 from src.ser.discord.service import DiscordService
-
 # pylint: disable=too-few-public-methods
 from src.ser.ws_banner.service import WSBannerService
-from src.ser.ws_news.service import WSNews
 from src.ser.ws_today_card.service import WSTodayCard
 from src.ser.ws_tournament_en.service import WSTournamentEn
 from src.ser.ws_tournament_jp.service import WSTournamentJp
@@ -29,7 +27,6 @@ class Application:
         BlackfireService,
         WSBannerService,
         WSTodayCard,
-        WSNews,
         WSTournamentEn,
         WSTournamentJp,
     )

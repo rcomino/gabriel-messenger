@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class AuthorValueObject:
+class Author:
     """Author Value object. This value object descrives author of something."""
     name: str = None
     url: str = None

@@ -1,12 +1,12 @@
 """Weiss Schwarz Barcelona Data"""
 
-from src.ser.common.value_object.author_value_object import AuthorValueObject
+from src.ser.common.value_object.author import Author
 
 
 # pylint: disable=too-few-public-methods
 class WeissSchwarzBarcelonaData:
     """Weiss Schwarz Data."""
-    _AUTHOR = AuthorValueObject(
+    _AUTHOR = Author(
         name='Weiß Schwarz - Barcelona',
         url='https://www.facebook.com/106532907475749',
         icon_url="https://scontent.xx.fbcdn.net/v/t1.0-1/cp0/p50x50/79356428_107588690732405_4729016489070297088_n.png?"

@@ -57,7 +57,7 @@
 <span class="kn">from</span> <span class="nn">src.ser.common.itf.receiver</span> <span class="kn">import</span> <span class="n">ReceiverInterface</span>
 <span class="kn">from</span> <span class="nn">src.ser.common.queue_manager</span> <span class="kn">import</span> <span class="n">QueueManager</span>
 <span class="kn">from</span> <span class="nn">src.ser.common.value_object.file_value_object</span> <span class="kn">import</span> <span class="n">FileValueObject</span>
-<span class="kn">from</span> <span class="nn">src.ser.common.value_object.queue_context_value_object</span> <span class="kn">import</span> <span class="n">QueueContextValueObject</span>
+<span class="kn">from</span> <span class="nn">src.ser.common.value_object.queue_context_value_object</span> <span class="kn">import</span> <span class="n">QueueContext</span>
 <span class="kn">from</span> <span class="nn">src.ser.common.value_object.task_value_object</span> <span class="kn">import</span> <span class="n">TaskValueObject</span>
 
 
@@ -74,7 +74,7 @@
         <span class="k">for</span> <span class="n">sender_name</span><span class="p">,</span> <span class="n">senders_configs</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">for</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">sender_configs</span> <span class="ow">in</span> <span class="n">senders_configs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="n">sender_configs</span><span class="p">:</span>
-                    <span class="n">queue_context</span> <span class="o">=</span> <span class="n">QueueContextValueObject</span><span class="p">(</span>
+                    <span class="n">queue_context</span> <span class="o">=</span> <span class="n">QueueContext</span><span class="p">(</span>
                         <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">publication_queue</span><span class="o">=</span><span class="n">senders</span><span class="p">[</span><span class="n">sender_name</span><span class="p">][</span><span class="n">sender_id</span><span class="p">]</span><span class="o">.</span><span class="n">publication_queue</span><span class="p">)</span>
                     <span class="n">queue_context_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">queue_context</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">QueueManager</span><span class="p">(</span><span class="n">queue_context_list</span><span class="o">=</span><span class="n">queue_context_list</span><span class="p">)</span>
