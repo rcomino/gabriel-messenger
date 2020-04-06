@@ -14,6 +14,7 @@ import aiohttp
 import appdirs
 import databases
 import sqlalchemy
+from aiohttp import ClientResponse
 from orm.models import ModelMetaclass
 from sqlalchemy import MetaData
 
@@ -45,6 +46,10 @@ class ReceiverMixin(ServiceMixin):
         self._queue_manager = queue_manager
         self._files_directory = files_directory
         self._download_files = download_files
+        self._session = aiohttp.ClientSession()
+
+    async def _close(self):
+        await self._session.close()
 
     @classmethod
     def _get_queue_manager(cls, config: Dict[str, dict], senders: Dict[str, Dict[str, TaskValueObject]]):
@@ -102,6 +107,7 @@ class ReceiverMixin(ServiceMixin):
                     running = False
                 else:
                     raise NotImplementedError
+        await self._close()
         logger.info("Shutdown")
 
     @abstractmethod
@@ -123,7 +129,7 @@ class ReceiverMixin(ServiceMixin):
             async with session.get(url) as resp:
                 data = await resp.read()
 
-        filename = self._get_filename_from_url(url)
+        filename = await self._get_filename_from_url(url)
 
         if not filename_unique:
             hash_obj = hashlib.blake2b()
@@ -157,13 +163,16 @@ class ReceiverMixin(ServiceMixin):
                                  state_change_queue=self._state_change_queue,
                                  logger=self._logger)
 
-    @staticmethod
-    async def _get_site_content(*, url) -> bytes:
+    async def _get_site_content(self, *, url) -> bytes:
         """This method get a url and return content in bytes."""
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                response = await resp.read()
-                return response
+        async with self._session.get(url) as resp:
+            response = await resp.read()
+            return response
+
+    async def _get_site_head(self, *, url) -> ClientResponse:
+        """This method get a url and return content in bytes."""
+        async with self._session.head(url) as resp:
+            return resp
 
     @classmethod
     def create_tasks_from_configuration(cls, *, configuration, senders, loop, app_name, environment, logging_level):

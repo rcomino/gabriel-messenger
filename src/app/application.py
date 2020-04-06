@@ -13,6 +13,7 @@ from src.ser.common.value_object.task_value_object import TaskValueObject
 from src.ser.discord.service import DiscordService
 # pylint: disable=too-few-public-methods
 from src.ser.ws_banner.service import WSBannerService
+from src.ser.ws_news.service import WSNews
 from src.ser.ws_today_card.service import WSTodayCard
 from src.ser.ws_tournament_en.service import WSTournamentEn
 from src.ser.ws_tournament_jp.service import WSTournamentJp
@@ -26,6 +27,7 @@ class Application:
     _RECEIVERS: Tuple[ReceiverMixin] = (
         BlackfireService,
         WSBannerService,
+        WSNews,
         WSTodayCard,
         WSTournamentEn,
         WSTournamentJp,

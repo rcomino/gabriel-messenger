@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import re
+import textwrap
 from asyncio import Queue, AbstractEventLoop, Task
 from typing import Dict, Any
 
@@ -102,44 +103,60 @@ class DiscordService(discord.Client, SenderMixin):
         }
 
     async def _load_publication(self, *, queue_data: QueueData) -> None:
-        files = []
-        embed = discord.Embed(
-            title=queue_data.publication.title,
-            description=queue_data.publication.description,
-            url=queue_data.publication.url,
-            colour=queue_data.publication.color,
-        )
-        if queue_data.publication.timestamp:
-            embed.timestamp = queue_data.publication.timestamp
+        channel = await self._get_channel(channel_id=queue_data.channel)
+        description = queue_data.publication.description or ''
+        description_chunks = textwrap.wrap(description, width=2000, replace_whitespace=False)
+        if not description_chunks:
+            description_chunks = [None]
 
-        if queue_data.publication.images[0].public_url:
-            embed.set_image(url=queue_data.publication.images[0].public_url)
-        else:
-            pretty_name = await self._clean_file_name(string=queue_data.publication.images[0].pretty_filename)
-            embed.set_image(url=f"attachment://{pretty_name}")
-            files.append(File(queue_data.publication.images[0].path, filename=pretty_name))
+        i = 1
+        file = None
+        for description_chunk in description_chunks:
+            embed = discord.Embed(
+                title=queue_data.publication.title,
+                description=description_chunk,
+                url=queue_data.publication.url,
+                colour=queue_data.publication.color,
+            )
+            if queue_data.publication.timestamp:
+                embed.timestamp = queue_data.publication.timestamp
 
-        for image in queue_data.publication.images[1:]:
-            pretty_name = await self._clean_file_name(string=image.pretty_filename)
-            files.append(File(image.path, filename=pretty_name))
+            if queue_data.publication.author:
+                embed.set_author(name=queue_data.publication.author.name,
+                                 url=queue_data.publication.author.url,
+                                 icon_url=queue_data.publication.author.icon_url)
+
+            if i == 1:
+                if queue_data.publication.custom_fields:
+                    for field in queue_data.publication.custom_fields:
+                        if field:
+                            embed.add_field(name=field.name, value=field.value)
+
+            if i == len(description_chunks):
+                if queue_data.publication.images:
+                    if queue_data.publication.images[0].public_url:
+                        embed.set_image(url=queue_data.publication.images[0].public_url)
+                    else:
+                        pretty_name = await self._clean_file_name(
+                            string=queue_data.publication.images[0].pretty_filename)
+                        embed.set_image(url=f"attachment://{pretty_name}")
+                        file = File(queue_data.publication.images[0].path, filename=pretty_name)
+
+            await channel.send(embed=embed, file=file)
+            i += 1
+        await self._send_extras(queue_data=queue_data, channel=channel)
+
+    async def _send_extras(self, queue_data: QueueData, channel: discord.TextChannel):
+        if queue_data.publication.images:
+            for image in queue_data.publication.images[1:]:
+                pretty_name = await self._clean_file_name(string=image.pretty_filename)
+                file = File(image.path, filename=pretty_name)
+                await channel.send(file=file)
 
         for publication_file in queue_data.publication.files:
             pretty_name = await self._clean_file_name(string=publication_file.pretty_filename)
-            files.append(File(publication_file.path, filename=pretty_name))
-
-        if queue_data.publication.author:
-            embed.set_author(name=queue_data.publication.author.name,
-                             url=queue_data.publication.author.url,
-                             icon_url=queue_data.publication.author.icon_url)
-
-        if queue_data.publication.custom_fields:
-            for field in queue_data.publication.custom_fields:
-                if field:
-                    embed.add_field(name=field.name, value=field.value)
-
-        channel = await self._get_channel(channel_id=queue_data.channel)
-
-        await channel.send(files=files, embed=embed)
+            file = File(publication_file.path, filename=pretty_name)
+            await channel.send(file=file)
 
     async def _get_channel(self, *, channel_id) -> discord.TextChannel:
         channel = self._channels.get(channel_id)

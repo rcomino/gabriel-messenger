@@ -17,7 +17,7 @@ class FileValueObject:
         """Return a pretty filename if it's possible. Is possible when pretty_name is fulfilled."""
         if self.pretty_name:
             if self.path:
-                extension = os.path.basename(self.path).split('.')[1].split('?')[0]
+                extension = os.path.basename(self.path).split('.')[-1].split('?')[0]
             else:
                 extension = os.path.basename(self.public_url).split('.')[1]
             return f"{self.pretty_name}.{extension}"
