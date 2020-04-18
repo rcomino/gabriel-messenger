@@ -43,7 +43,6 @@ class FacebookService(ReceiverMixin, BrigadaSOSData):
         self._cache: List[int] = []
 
     # TODO: publications from web api
-    # TODO: get post picture
     # TODO: save last publication date in cache instead of all published ids
     async def _load_publications(self):
         fields = "created_time,message,full_picture"
@@ -55,11 +54,18 @@ class FacebookService(ReceiverMixin, BrigadaSOSData):
             # TODO: accurate format data
             description = RichText(data=message, format_data=FormatData.HTML)
             post_id = post["id"]
+            images = []
+            if "full_picture" in post:
+                img_url = post["full_picture"]
+                img = await self._get_file_value_object(url=img_url, public_url=True, filename_unique=True)
+                images.append(img)
+
             if post_id not in self._cache:
                 publication = Publication(publication_id=post_id,
                                           description=description,
                                           timestamp=timestamp,
                                           color=self._colour,
+                                          images=images,
                                           author=self._AUTHOR)
                 transaction_data = TransactionData(transaction_id=publication.publication_id,
                                                    publications=[publication])
