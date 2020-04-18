@@ -59,19 +59,20 @@ class FacebookService(ReceiverMixin, BrigadaSOSData):
             post_result = resp.json()
             post_list = sorted(post_result["data"], key=lambda p: p["created_time"])
             for post in post_list:
-                unix_time = post["created_time"]
-                timestamp = datetime.fromtimestamp(unix_time)
-                message = post["message"]
-                # TODO: accurate format data
-                description = RichText(data=message, format_data=FormatData.HTML)
                 post_id = post["id"]
-                images = []
-                if "full_picture" in post:
-                    img_url = post["full_picture"]
-                    img = await self._get_file_value_object(url=img_url, public_url=True, filename_unique=True)
-                    images.append(img)
-
                 if post_id not in self._cache:
+                    unix_time = post["created_time"]
+                    timestamp = datetime.fromtimestamp(unix_time)
+                    message = post["message"]
+                    # TODO: accurate format data
+                    description = RichText(data=message, format_data=FormatData.HTML)
+
+                    images = []
+                    if "full_picture" in post:
+                        img_url = post["full_picture"]
+                        img = await self._get_file_value_object(url=img_url, public_url=True, filename_unique=True)
+                        images.append(img)
+
                     publication = Publication(publication_id=post_id,
                                               description=description,
                                               timestamp=timestamp,
