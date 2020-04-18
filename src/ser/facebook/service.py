@@ -47,6 +47,7 @@ class FacebookService(ReceiverMixin, BrigadaSOSData):
         self._cache: List[int] = []
 
     # TODO: save last publication date in cache instead of all published post ids
+    # TODO: change requests for io http
     async def _load_publications(self):
         resp = requests.get(self._url)
         if resp.status_code != 200:
