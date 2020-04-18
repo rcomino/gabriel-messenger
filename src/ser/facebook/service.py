@@ -1,9 +1,9 @@
+"""Facebook Page Receiver service module"""
 import logging
-import requests
-from asyncio import Queue
 from datetime import datetime
-
-from typing import List
+from asyncio import Queue
+from typing import List, Dict, Any
+import requests
 
 from src.ser.common.data.weiss_schwarz_barcelona_data import BrigadaSOSData
 from src.ser.common.enums.format_data import FormatData
@@ -17,9 +17,10 @@ from src.ser.facebook.models.identifier import Identifier, METADATA
 
 
 class FacebookService(ReceiverMixin, BrigadaSOSData):
-    MODULE = "Facebook Receiver"
+    """Facebook Page Receiver service. Get posts from a Facebook page."""
+    MODULE = "Facebook Page Receiver"
     MODEL_IDENTIFIER = Identifier
-    MODELS = (Identifier,)
+    MODELS = (Identifier, )
     MODELS_METADATA = METADATA
     _BASE_URL = "https://graph.facebook.com/{0}/feed?" \
                 "date_format=U&" \
@@ -45,7 +46,7 @@ class FacebookService(ReceiverMixin, BrigadaSOSData):
         self._files_directory = files_directory
         self._cache: List[int] = []
 
-    # TODO: save last publication date in cache instead of all published ids
+    # TODO: save last publication date in cache instead of all published post ids
     async def _load_publications(self):
         resp = requests.get(self._url)
         if resp.status_code != 200:
@@ -54,34 +55,43 @@ class FacebookService(ReceiverMixin, BrigadaSOSData):
             if error_code == 190:
                 self.logger.error("Access token expired")
             else:
-                self.logger.error("Could not load Facebook publications. Status code {}".format(resp.status_code))
+                message = error["message"]
+                self.logger.error("Could not load Facebook publications: %s", message)
         else:
             post_result = resp.json()
             post_list = sorted(post_result["data"], key=lambda p: p["created_time"])
-            for post in post_list:
-                post_id = post["id"]
-                if post_id not in self._cache:
-                    unix_time = post["created_time"]
-                    timestamp = datetime.fromtimestamp(unix_time)
-                    message = post["message"]
-                    # TODO: accurate format data
-                    description = RichText(data=message, format_data=FormatData.HTML)
+            trans_list = await self._create_publication_transactions(post_list)
 
-                    images = []
-                    if "full_picture" in post:
-                        img_url = post["full_picture"]
-                        img = await self._get_file_value_object(url=img_url, public_url=True, filename_unique=True)
-                        images.append(img)
+            for trans in trans_list:
+                await self._put_in_queue(transaction_data=trans)
 
-                    publication = Publication(publication_id=post_id,
-                                              description=description,
-                                              timestamp=timestamp,
-                                              color=self._colour,
-                                              images=images,
-                                              author=self._AUTHOR)
-                    transaction_data = TransactionData(transaction_id=publication.publication_id,
-                                                       publications=[publication])
-                    await self._put_in_queue(transaction_data=transaction_data)
+    async def _create_publication_transactions(self, post_list: List[Dict[str, Any]]) -> List[TransactionData]:
+        transaction_list = []
+        for post in post_list:
+            post_id = post["id"]
+            if post_id not in self._cache:
+                unix_time = post["created_time"]
+                timestamp = datetime.fromtimestamp(unix_time)
+                message = post["message"]
+                # TODO: accurate format data
+                description = RichText(data=message, format_data=FormatData.HTML)
+
+                images = []
+                if "full_picture" in post:
+                    img_url = post["full_picture"]
+                    img = await self._get_file_value_object(url=img_url, public_url=True, filename_unique=True)
+                    images.append(img)
+
+                publication = Publication(publication_id=post_id,
+                                          description=description,
+                                          timestamp=timestamp,
+                                          color=self._colour,
+                                          images=images,
+                                          author=self._AUTHOR)
+                transaction_data = TransactionData(transaction_id=publication.publication_id,
+                                                   publications=[publication])
+                transaction_list.append(transaction_data)
+        return transaction_list
 
     @classmethod
     def _get_custom_configuration(cls, *, configuration, senders):
