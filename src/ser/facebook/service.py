@@ -1,10 +1,9 @@
 import logging
+import requests
 from asyncio import Queue
 from datetime import datetime
 
 from typing import List
-
-import facebook
 
 from src.ser.common.data.weiss_schwarz_barcelona_data import BrigadaSOSData
 from src.ser.common.enums.format_data import FormatData
@@ -22,15 +21,19 @@ class FacebookService(ReceiverMixin, BrigadaSOSData):
     MODEL_IDENTIFIER = Identifier
     MODELS = (Identifier,)
     MODELS_METADATA = METADATA
+    _BASE_URL = "https://graph.facebook.com/{0}/feed?" \
+                "date_format=U&" \
+                "fields=created_time,message,full_picture&" \
+                "access_token={1}"
 
-    _graph = None
+    _url = None
 
     def __init__(self, *, files_directory: str, instance_name: str, queue_manager: QueueManager, download_files: bool,
                  wait_time: int, logging_level: str, state_change_queue: Queue, colour: int):
         self._instance_name = instance_name
-        logger = logging.getLogger(self._instance_name)
-        logger.setLevel(logging_level)
-        super().__init__(logger=logger,
+        self.logger = logging.getLogger(self._instance_name)
+        self.logger.setLevel(logging_level)
+        super().__init__(logger=self.logger,
                          wait_time=wait_time,
                          state_change_queue=state_change_queue,
                          queue_manager=queue_manager,
@@ -42,34 +45,42 @@ class FacebookService(ReceiverMixin, BrigadaSOSData):
         self._files_directory = files_directory
         self._cache: List[int] = []
 
-    # TODO: publications from web api
     # TODO: save last publication date in cache instead of all published ids
     async def _load_publications(self):
-        fields = "created_time,message,full_picture"
-        posts = self._graph.get_connections(id='me', connection_name='posts', fields=fields, date_format="U")
-        for post in posts["data"]:
-            unix_time = post["created_time"]
-            timestamp = datetime.fromtimestamp(unix_time)
-            message = post["message"]
-            # TODO: accurate format data
-            description = RichText(data=message, format_data=FormatData.HTML)
-            post_id = post["id"]
-            images = []
-            if "full_picture" in post:
-                img_url = post["full_picture"]
-                img = await self._get_file_value_object(url=img_url, public_url=True, filename_unique=True)
-                images.append(img)
+        resp = requests.get(self._url)
+        if resp.status_code != 200:
+            error = resp.json()["error"]
+            error_code = error["code"]
+            if error_code == 190:
+                self.logger.error("Access token expired")
+            else:
+                self.logger.error("Could not load Facebook publications. Status code {}".format(resp.status_code))
+        else:
+            post_result = resp.json()
+            post_list = sorted(post_result["data"], key=lambda p: p["created_time"])
+            for post in post_list:
+                unix_time = post["created_time"]
+                timestamp = datetime.fromtimestamp(unix_time)
+                message = post["message"]
+                # TODO: accurate format data
+                description = RichText(data=message, format_data=FormatData.HTML)
+                post_id = post["id"]
+                images = []
+                if "full_picture" in post:
+                    img_url = post["full_picture"]
+                    img = await self._get_file_value_object(url=img_url, public_url=True, filename_unique=True)
+                    images.append(img)
 
-            if post_id not in self._cache:
-                publication = Publication(publication_id=post_id,
-                                          description=description,
-                                          timestamp=timestamp,
-                                          color=self._colour,
-                                          images=images,
-                                          author=self._AUTHOR)
-                transaction_data = TransactionData(transaction_id=publication.publication_id,
-                                                   publications=[publication])
-                await self._put_in_queue(transaction_data=transaction_data)
+                if post_id not in self._cache:
+                    publication = Publication(publication_id=post_id,
+                                              description=description,
+                                              timestamp=timestamp,
+                                              color=self._colour,
+                                              images=images,
+                                              author=self._AUTHOR)
+                    transaction_data = TransactionData(transaction_id=publication.publication_id,
+                                                       publications=[publication])
+                    await self._put_in_queue(transaction_data=transaction_data)
 
     @classmethod
     def _get_custom_configuration(cls, *, configuration, senders):
@@ -80,5 +91,6 @@ class FacebookService(ReceiverMixin, BrigadaSOSData):
             )
         ]
         token = configuration["token"]
-        cls._graph = facebook.GraphAPI(access_token=token, version="3.1")
+        page_id = configuration["page_id"]
+        cls._url = cls._BASE_URL.format(page_id, token)
         return configurations
